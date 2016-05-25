@@ -17,6 +17,8 @@ def SignalAnalysis(file):
     LR_Signal = data[:,2]
     TB_Signal = data[:,3]
     
+    time, sumSignal, LR_Signal, TB_Signal = signalCrop(time,sumSignal,LR_Signal,TB_Signal)
+    
     sumSignal -= np.mean(sumSignal)
     LR_Signal -= np.mean(LR_Signal)
     TB_Signal -= np.mean(TB_Signal)
@@ -67,3 +69,21 @@ def SignalAnalysis(file):
     plt.ylim(0,max(TBPeaks))
 #    plt.xlim(0,8)
     plt.show()
+    
+    
+def signalCrop(time,sumSignal,LRSignal,TBSignal):
+    newtime = []
+    newSum = []
+    newLR = []
+    newTB = []
+    
+    
+    for i in range(len(sumSignal)):
+        if sumSignal[i] >=0.3:
+            newtime.append(time[i])
+            newSum.append(sumSignal[i])
+            newLR.append(LRSignal[i])
+            newTB.append(TBSignal[i])
+    return newtime, newSum, newLR, newTB
+            
+            
