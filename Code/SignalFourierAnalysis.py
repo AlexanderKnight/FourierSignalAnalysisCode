@@ -16,6 +16,10 @@ def SignalAnalysis(file):
     sumSignal = data[:,1]
     LR_Signal = data[:,2]
     TB_Signal = data[:,3]
+    
+    sumSignal -= np.mean(sumSignal)
+    LR_Signal -= np.mean(LR_Signal)
+    TB_Signal -= np.mean(TB_Signal)
 
     sumSignalF = np.fft.fft(sumSignal)
     sumSignalF = np.abs(sumSignalF[:len(time)/2])/max(sumSignalF)
