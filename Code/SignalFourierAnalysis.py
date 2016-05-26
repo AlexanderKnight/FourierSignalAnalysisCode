@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import peakutils
 
-def SignalAnalysis(file):
+def SignalAnalysis(file, minSum):
     data = np.genfromtxt('Data/'+file, delimiter='\t')
 
     time = data[:,0]
@@ -17,7 +17,7 @@ def SignalAnalysis(file):
     LR_Signal = data[:,2]
     TB_Signal = data[:,3]
     
-    time, sumSignal, LR_Signal, TB_Signal = signalCrop(time,sumSignal,LR_Signal,TB_Signal)
+    time, sumSignal, LR_Signal, TB_Signal = signalCrop(time,sumSignal,LR_Signal,TB_Signal, minSum)
     
     sumSignal -= np.mean(sumSignal)
     LR_Signal -= np.mean(LR_Signal)
@@ -66,12 +66,12 @@ def SignalAnalysis(file):
 
     plt.plot(timeF,TB_SignalF)
     plt.grid()
-    plt.ylim(0,max(TBPeaks))
+    plt.ylim(0,max(TBPeaks)/10)
 #    plt.xlim(0,8)
     plt.show()
     
     
-def signalCrop(time,sumSignal,LRSignal,TBSignal):
+def signalCrop(time,sumSignal,LRSignal,TBSignal, minSum):
     newtime = []
     newSum = []
     newLR = []
@@ -79,7 +79,7 @@ def signalCrop(time,sumSignal,LRSignal,TBSignal):
     
     
     for i in range(len(sumSignal)):
-        if sumSignal[i] >=0.3:
+        if sumSignal[i] >=minSum:
             newtime.append(time[i])
             newSum.append(sumSignal[i])
             newLR.append(LRSignal[i])
