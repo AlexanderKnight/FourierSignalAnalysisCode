@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import peakdetect as pd
 import os
 
-file = '2014_02_24-run01Data.txt'
+file = '2014-02-28-run06-Data.txt'
 minSum = 0.9
 
 
@@ -78,12 +78,14 @@ avgDeltaT = np.mean(deltaT)
 freq = np.linspace(0.0, 1.0/(2.0*avgDeltaT),len(time)/2)
 
 #does peakfinding on each of them, still in progress
-sumPeaks, sumLows = pd.peakdet(sumSignalF,0.5,freq)
-LRPeaks, LRLows = pd.peakdet(LR_SignalF, 0.5, freq)
-TBPeaks, TBLows = pd.peakdet(TB_SignalF, 0.5, freq)
-print(sumPeaks)
+sumPeaks, sumLows = pd.peakdet(sumSignalF,0.1,freq)
+LRPeaks, LRLows = pd.peakdet(LR_SignalF, 0.1, freq)
+TBPeaks, TBLows = pd.peakdet(TB_SignalF, 0.1, freq)
+
 
 plt.figure(figsize = (20,15))
+plt.suptitle(file, fontsize = 18)
+
 # plots the original signals
 
 plt.subplot(3,3,1)
@@ -132,27 +134,86 @@ plt.grid()
 # plots  fourier transforms
 plt.subplot(3,3,7)
 plt.plot(freq,sumSignalF)
-plt.scatter(np.real(sumPeaks[:,0]), sumPeaks[:,1])
+plt.scatter(np.real(sumPeaks[:,0]), sumPeaks[:,1], label='Peaks')
+sumPeaksLabel = 'Peaks at'
+for i in range(len(np.real(sumPeaks[:,0]))):
+    sumPeaksLabel += '\n %0.4f Hz,'%(np.real(sumPeaks[i,0]))
+plt.plot(0,0, color='w', label=sumPeaksLabel)
 plt.title('Fourier Transform of Cropped Sum Signal', fontsize=16)
 plt.ylabel('Volts per Hertz (V/Hz)',fontsize=12)
 plt.xlabel('Frequency (Hz)',fontsize=12)
+plt.legend(bbox_to_anchor=(1,1), fontsize = 10)
 plt.grid()
 
 plt.subplot(3,3,8)
 plt.plot(freq,LR_SignalF)
-plt.scatter(np.real(LRPeaks[:,0]), LRPeaks[:,1])
+plt.scatter(np.real(LRPeaks[:,0]), LRPeaks[:,1], label='Peaks')
+LRPeaksLabel = 'Peaks at'
+for i in range(len(np.real(LRPeaks[:,0]))):
+    LRPeaksLabel += '\n %0.4f Hz,'%(np.real(LRPeaks[i,0]))
+plt.plot(0,0, color='w', label=LRPeaksLabel)
 plt.title('Fourier Transform of Cropped Left-Right Signal', fontsize=16)
 plt.ylabel('Volts per Hertz (V/Hz)',fontsize=12)
 plt.xlabel('Frequency (Hz)',fontsize=12)
+plt.legend(bbox_to_anchor=(1,1), fontsize = 10)
 plt.grid()
 
 plt.subplot(3,3,9)
 plt.plot(freq,TB_SignalF)
-plt.scatter(np.real(TBPeaks[:,0]),TBPeaks[:,1])
+plt.scatter(np.real(TBPeaks[:,0]),TBPeaks[:,1], label='Peaks')
+TBPeaksLabel = 'Peaks at'
+for i in range(len(np.real(TBPeaks[:,0]))):
+    TBPeaksLabel += '\n %0.4f Hz,'%(np.real(TBPeaks[i,0]))
+plt.plot(0,0, color='w', label=TBPeaksLabel)
 plt.title('Fourier Transform of Cropped Top-Bottom Signal', fontsize=16)
 plt.ylabel('Volts per Hertz (V/Hz)',fontsize=12)
 plt.xlabel('Frequency (Hz)',fontsize=12)
+plt.legend(bbox_to_anchor=(1,1), fontsize = 10)
 plt.grid()
 
 plt.tight_layout()
+plt.subplots_adjust(top=0.93)
 plt.show()
+
+review = False
+if review ==True:
+    TB_SignalFirst = []
+    TB_SignalSec = []
+    timeFirst = []
+    timeSec = []
+    for i in range(len(TB_Signal)):
+        if time[i]<100:
+            TB_SignalFirst.append(TB_Signal[i])
+            timeFirst.append(time[i])
+        else:
+
+            TB_SignalSec.append(TB_Signal[i])
+            timeSec.append(time[i])
+
+    TBSignalFirstF = np.fft.fft(TB_SignalFirst)**2
+    TBSignalFirstF = np.abs(TBSignalFirstF[:len(timeFirst)/2])/max(TBSignalFirstF)
+
+    TBSignalSecF = np.fft.fft(TB_SignalSec)**2
+    TBSignalSecF = np.abs(TBSignalSecF[:len(timeSec)/2])/max(TBSignalSecF)
+
+    freqFirst = np.linspace(0.0, 1.0/(2.0*avgDeltaT),len(timeFirst)/2)
+    freqSec = np.linspace(0.0, 1.0/(2.0*avgDeltaT),len(timeSec)/2)
+
+
+
+#TBPeaksFirst, TBLowsFirst = pd.peakdet(TBSignalFirstF, 0.2, freq)
+#TBPeaksSec, TBLowsSec = pd.peakdet(TBSignalSecF, 0.2, freq)
+    plt.subplot(1,3,1)
+    plt.plot(freqFirst, TBSignalFirstF)
+    plt.plot(freqSec, TBSignalSecF)
+    plt.xlim(4,5)
+
+    plt.subplot(1,3,2)
+    plt.plot(freqFirst,TBSignalFirstF)
+    plt.xlim(4,5)
+
+    plt.subplot(1,3,3)
+    plt.plot(freqSec,TBSignalSecF)
+    plt.xlim(4,5)
+
+    plt.show()
