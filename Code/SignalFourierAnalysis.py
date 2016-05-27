@@ -11,11 +11,10 @@ import peakdetect as pd
 import os
 import re
 
-file = '2014-02-28-run04-Data.txt'
+file = '2016-03-03-run01-Data.txt'
 fileNameRegex = re.compile(r'(\w|-)+')
 fileName = fileNameRegex.search(file).group()
 
-print(type(fileName))
 
 minSum = 0.9
 
@@ -184,7 +183,7 @@ new_rel_path = 'Data/'+fileName+'.png'
 new_abs_file_path = os.path.join(script_dir, new_rel_path)
 
 plt.savefig(new_abs_file_path, dpi=500)
-plt.show()
+#plt.show()
 
 
 review = False
