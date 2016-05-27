@@ -9,8 +9,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import peakdetect as pd
 import os
+import re
 
-file = '2014-02-28-run06-Data.txt'
+file = '2014-02-28-run04-Data.txt'
+fileNameRegex = re.compile(r'(\w|-)+')
+fileName = fileNameRegex.search(file).group()
+
+print(type(fileName))
+
 minSum = 0.9
 
 
@@ -173,7 +179,13 @@ plt.grid()
 
 plt.tight_layout()
 plt.subplots_adjust(top=0.93)
+
+new_rel_path = 'Data/'+fileName+'.png'
+new_abs_file_path = os.path.join(script_dir, new_rel_path)
+
+plt.savefig(new_abs_file_path, dpi=500)
 plt.show()
+
 
 review = False
 if review ==True:
