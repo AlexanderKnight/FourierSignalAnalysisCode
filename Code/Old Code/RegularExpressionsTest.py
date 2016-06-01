@@ -1,7 +1,7 @@
 import re
 
-newRegex = re.compile('\w+')
+newRegex = re.compile('.*')
 
-newString = newRegex.search('Hello where what dkdkd.dkdk')
+newString = newRegex.findall('Hello where what dkdkd.dkdk')
 
-print(newString.group())
+print(newString)

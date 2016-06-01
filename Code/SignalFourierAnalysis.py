@@ -6,17 +6,18 @@ Created on Wed May 25 12:57:40 2016
 """
 
 import numpy as np
+import scipy as sp
+import scipy.fftpack as spfft
 import matplotlib.pyplot as plt
 import peakdetect as pd
 import os
 import re
 
-file = '2016-03-03-run01-Data.txt'
+file = 'TestFile.txt'
+minSum = 0.5
 fileNameRegex = re.compile(r'(\w|-)+')
 fileName = fileNameRegex.search(file).group()
 
-
-minSum = 0.9
 
 
 def signalCrop(time,sumSignal,LRSignal,TBSignal, minSum):
@@ -63,13 +64,13 @@ TB_Signal -= np.mean(TB_Signal)
 
 # does the fast fourier transform on each of the arrays and sets
 #them up to be plotted
-sumSignalF = np.fft.fft(sumSignal)**2
+sumSignalF = np.fft.fft(sumSignal)
 sumSignalF = np.abs(sumSignalF[:len(time)/2])/max(sumSignalF)
 
-LR_SignalF = np.fft.fft(LR_Signal)**2
+LR_SignalF = np.fft.fft(LR_Signal)
 LR_SignalF = np.abs(LR_SignalF[:len(time)/2])/max(LR_SignalF)
 
-TB_SignalF = np.fft.fft(TB_Signal)**2
+TB_SignalF = np.fft.fft(TB_Signal)
 TB_SignalF = np.abs(TB_SignalF[:len(time)/2])/max(TB_SignalF)
 
 #find the max value that can be plotted out to
@@ -183,7 +184,7 @@ new_rel_path = 'Data/'+fileName+'.png'
 new_abs_file_path = os.path.join(script_dir, new_rel_path)
 
 plt.savefig(new_abs_file_path, dpi=500)
-#plt.show()
+plt.show()
 
 
 review = False
