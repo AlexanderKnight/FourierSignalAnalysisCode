@@ -13,14 +13,73 @@ import peakdetect as pd
 import os
 import re
 
-file = 'TestFile.txt'
-minSum = 0.5
-fileNameRegex = re.compile(r'(\w|-)+')
-fileName = fileNameRegex.search(file).group()
+
+def FFTSignalAnalysis(file, minSum=1.0, minSumAbs = True, focus = None):
+
+
+    fileNameRegex = re.compile(r'(\w|-)+')
+    fileName = fileNameRegex.search(file).group()
+
+    #Brings in data from datafile in the /Data/ folder
+    script_dir = os.path.dirname(__file__)
+    rel_path = 'Data/'+file
+    abs_file_path = os.path.join(script_dir, rel_path)
+    data = np.genfromtxt(abs_file_path, delimiter='\t')
 
 
 
-def signalCrop(time,sumSignal,LRSignal,TBSignal, minSum):
+    #Separates out values from larger array
+    oldTime = data[:,0]
+    oldSumSignal = data[:,1]
+    oldLR_Signal = data[:,2]
+    oldTB_Signal = data[:,3]
+
+
+    if focus != None:
+        oldTime, oldSumSignal, oldLR_Signal, oldTB_Signal = signalCropTime(\
+        oldTime, oldSumSignal, oldLR_Signal, oldTB_Signal, focus)
+
+    #crops signal based on decimal fraction strength of sumSignal, if lower than specified, cropped out
+    time, sumSignal, LR_Signal, TB_Signal = signalCropSum(oldTime,oldSumSignal,oldLR_Signal,oldTB_Signal, minSum, minSumAbs = minSumAbs)
+
+    #removes mean, zeroes
+    sumSignal -= np.mean(sumSignal)
+    LR_Signal -= np.mean(LR_Signal)
+    TB_Signal -= np.mean(TB_Signal)
+
+    # does the fast fourier transform on each of the arrays and sets
+    #them up to be plotted
+    sumSignalF = FourierTransform(sumSignal)
+    LR_SignalF = FourierTransform(LR_Signal)
+    TB_SignalF = FourierTransform(TB_Signal)
+
+    #find the max value that can be plotted out to
+    deltaT = []
+    for i in range(len(time)-1):
+        deltaT.append(time[i+1]-time[i])
+
+    avgDeltaT = np.mean(deltaT)
+
+    # makes an array for frequencies
+    freq = np.linspace(0.0, 1.0/(2.0*avgDeltaT),len(time)/2)
+
+    #does peakfinding on each of them, still in progress
+    sumPeaks = PeakDetect(sumSignalF,freq)
+    LRPeaks = PeakDetect(LR_SignalF, freq)
+    TBPeaks = PeakDetect(TB_SignalF, freq)
+
+    oldData = [oldTime, oldSumSignal, oldLR_Signal, oldTB_Signal]
+    croppedData = [time, sumSignal, LR_Signal, TB_Signal]
+    transformedData = [freq, sumSignalF, LR_SignalF, TB_SignalF]
+    peakData = [sumPeaks, LRPeaks, TBPeaks]
+
+    graphSignals(oldData, croppedData, transformedData, peakData, fileName, oldTime, script_dir)
+
+
+
+
+
+def signalCropSum(time,sumSignal,LRSignal,TBSignal, minSum=1.0, minSumAbs=True):
     '''
     Function to crop signal based on relative strength of sum signal
     compared to maximum. So minSum=0.8 would return all data at which
@@ -35,197 +94,104 @@ def signalCrop(time,sumSignal,LRSignal,TBSignal, minSum):
 
     # crops signals
     for i in range(len(sumSignal)):
-        if sumSignal[i] >=minSum*max(sumSignal):
+        if minSumAbs ==True:
+            if sumSignal[i] >=minSum:
+                newtime.append(time[i])
+                newSum.append(sumSignal[i])
+                newLR.append(LRSignal[i])
+                newTB.append(TBSignal[i])
+        elif minSumAbs ==False:
+            if sumSignal[i] >=minSum*max(sumSignal):
+                newtime.append(time[i])
+                newSum.append(sumSignal[i])
+                newLR.append(LRSignal[i])
+                newTB.append(TBSignal[i])
+    return newtime, newSum, newLR, newTB
+
+def signalCropTime(time, sumSignal, LRSignal, TBSignal, timeChunk):
+
+    newtime = []
+    newSum = []
+    newLR = []
+    newTB = []
+
+    for i in range(len(time)):
+        if time[i] >= timeChunk[0] and time[i] <= timeChunk[1]:
             newtime.append(time[i])
             newSum.append(sumSignal[i])
             newLR.append(LRSignal[i])
             newTB.append(TBSignal[i])
     return newtime, newSum, newLR, newTB
 
-#Brings in data from datafile in the /Data/ folder
-script_dir = os.path.dirname(__file__)
-rel_path = 'Data/'+file
-abs_file_path = os.path.join(script_dir, rel_path)
-data = np.genfromtxt(abs_file_path, delimiter='\t')
 
-#Separates out values from larger array
-oldTime = data[:,0]
-oldSumSignal = data[:,1]
-oldLR_Signal = data[:,2]
-oldTB_Signal = data[:,3]
-
-#crops signal based on decimal fraction strength of sumSignal, if lower than specified, cropped out
-time, sumSignal, LR_Signal, TB_Signal = signalCrop(oldTime,oldSumSignal,oldLR_Signal,oldTB_Signal, minSum)
-
-#removes mean, zeroes
-sumSignal -= np.mean(sumSignal)
-LR_Signal -= np.mean(LR_Signal)
-TB_Signal -= np.mean(TB_Signal)
-
-# does the fast fourier transform on each of the arrays and sets
-#them up to be plotted
-sumSignalF = np.fft.fft(sumSignal)
-sumSignalF = np.abs(sumSignalF[:len(time)/2])/max(sumSignalF)
-
-LR_SignalF = np.fft.fft(LR_Signal)
-LR_SignalF = np.abs(LR_SignalF[:len(time)/2])/max(LR_SignalF)
-
-TB_SignalF = np.fft.fft(TB_Signal)
-TB_SignalF = np.abs(TB_SignalF[:len(time)/2])/max(TB_SignalF)
-
-#find the max value that can be plotted out to
-deltaT = []
-for i in range(len(time)-1):
-    deltaT.append(time[i+1]-time[i])
-
-avgDeltaT = np.mean(deltaT)
-
-# makes an array for frequencies
-freq = np.linspace(0.0, 1.0/(2.0*avgDeltaT),len(time)/2)
-
-#does peakfinding on each of them, still in progress
-sumPeaks, sumLows = pd.peakdet(sumSignalF,0.1,freq)
-LRPeaks, LRLows = pd.peakdet(LR_SignalF, 0.1, freq)
-TBPeaks, TBLows = pd.peakdet(TB_SignalF, 0.1, freq)
+def graphSignals(old, cropped, transformed, peaks, fileName, time, script_dir):
 
 
-plt.figure(figsize = (20,15))
-plt.suptitle(file, fontsize = 18)
+    graphLabels = ['Sum Signal', 'Left-Right Signal', 'Top-Bottom Signal']
 
-# plots the original signals
+    i = 1
+    plt.figure(figsize=(20,15))
+    #plots the original signals
+    for j in range(1,4):
 
-plt.subplot(3,3,1)
-plt.plot(oldTime,oldSumSignal)
-plt.title('Original Sum Signal', fontsize=16)
-plt.ylabel('Volts (V)',fontsize=12)
-plt.xlabel('Time (s)',fontsize=12)
-plt.grid()
+        plt.subplot(3,3,i)
+        plt.plot(old[0], old[j])
+        plt.title('Original '+graphLabels[j-1], fontsize=16)
+        plt.ylabel('Volts (V)',fontsize=12)
+        plt.xlabel('Time (s)',fontsize=12)
+        plt.grid()
+        i +=1
 
-plt.subplot(3,3,2)
-plt.plot(oldTime,oldLR_Signal)
-plt.title('Original Left-Right Signal', fontsize=16)
-plt.ylabel('Volts (V)',fontsize=12)
-plt.xlabel('Time (s)',fontsize=12)
-plt.grid()
+    for j in range(1,4):
+        #Plots the cropped signals
+        plt.subplot(3,3,i)
+        plt.title('Cropped '+graphLabels[j-1], fontsize=16)
+        plt.ylabel('Volts (V)',fontsize=12)
+        plt.xlabel('Time (s)',fontsize=12)
+        plt.plot(cropped[0],cropped[j])
+        plt.grid()
+        i+=1
 
-plt.subplot(3,3,3)
-plt.plot(oldTime,oldTB_Signal)
-plt.title('Original Top-Bottom Signal', fontsize=16)
-plt.ylabel('Volts (V)',fontsize=12)
-plt.xlabel('Time (s)',fontsize=12)
-plt.grid()
+    for j in range(1,4):
+        # plots  fourier transforms
+        plt.subplot(3,3,i)
+        plt.plot(transformed[0],transformed[j])
+        PeaksLabel = 'Peaks at'
+        try:
+            plt.scatter((peaks[j-1][:,0]), peaks[j-1][:,1], label='Peaks')
+            for k in range(len(peaks[j-1][:,0])):
+                PeaksLabel += '\n %0.4f Hz,'%(peaks[j-1][k,0])
+        except:
+            PeaksLabel += ' nowhere'
+        plt.plot(0,0, color='w', label=PeaksLabel)
+        plt.title('Fourier Transform of Cropped '+graphLabels[j-1], fontsize=16)
+        plt.ylabel('Volts per Hertz (V/Hz)',fontsize=12)
+        plt.xlabel('Frequency (Hz)',fontsize=12)
+        plt.legend(bbox_to_anchor=(1,1), fontsize = 10)
+        plt.grid()
+        i+=1
 
-#Plots the cropped signals
-plt.subplot(3,3,4)
-plt.title('Cropped Sum Signal', fontsize=16)
-plt.ylabel('Volts (V)',fontsize=12)
-plt.xlabel('Time (s)',fontsize=12)
-plt.plot(time,sumSignal)
-plt.grid()
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.93)
 
-plt.subplot(3,3,5)
-plt.title('Cropped Left-Right Signal', fontsize=16)
-plt.ylabel('Volts (V)',fontsize=12)
-plt.xlabel('Time (s)',fontsize=12)
-plt.plot(time,LR_Signal)
-plt.grid()
+    new_rel_path = 'Data/%s-%0.2fs-%0.2fs.png'%(fileName, time[0],time[-1])
+    new_abs_file_path = os.path.join(script_dir, new_rel_path)
 
-plt.subplot(3,3,6)
-plt.title('Cropped Top-Bottom Signal', fontsize=16)
-plt.ylabel('Volts (V)',fontsize=12)
-plt.xlabel('Time (s)',fontsize=12)
-plt.plot(time,TB_Signal)
-plt.grid()
-
-# plots  fourier transforms
-plt.subplot(3,3,7)
-plt.plot(freq,sumSignalF)
-plt.scatter(np.real(sumPeaks[:,0]), sumPeaks[:,1], label='Peaks')
-sumPeaksLabel = 'Peaks at'
-for i in range(len(np.real(sumPeaks[:,0]))):
-    sumPeaksLabel += '\n %0.4f Hz,'%(np.real(sumPeaks[i,0]))
-plt.plot(0,0, color='w', label=sumPeaksLabel)
-plt.title('Fourier Transform of Cropped Sum Signal', fontsize=16)
-plt.ylabel('Volts per Hertz (V/Hz)',fontsize=12)
-plt.xlabel('Frequency (Hz)',fontsize=12)
-plt.legend(bbox_to_anchor=(1,1), fontsize = 10)
-plt.grid()
-
-plt.subplot(3,3,8)
-plt.plot(freq,LR_SignalF)
-plt.scatter(np.real(LRPeaks[:,0]), LRPeaks[:,1], label='Peaks')
-LRPeaksLabel = 'Peaks at'
-for i in range(len(np.real(LRPeaks[:,0]))):
-    LRPeaksLabel += '\n %0.4f Hz,'%(np.real(LRPeaks[i,0]))
-plt.plot(0,0, color='w', label=LRPeaksLabel)
-plt.title('Fourier Transform of Cropped Left-Right Signal', fontsize=16)
-plt.ylabel('Volts per Hertz (V/Hz)',fontsize=12)
-plt.xlabel('Frequency (Hz)',fontsize=12)
-plt.legend(bbox_to_anchor=(1,1), fontsize = 10)
-plt.grid()
-
-plt.subplot(3,3,9)
-plt.plot(freq,TB_SignalF)
-plt.scatter(np.real(TBPeaks[:,0]),TBPeaks[:,1], label='Peaks')
-TBPeaksLabel = 'Peaks at'
-for i in range(len(np.real(TBPeaks[:,0]))):
-    TBPeaksLabel += '\n %0.4f Hz,'%(np.real(TBPeaks[i,0]))
-plt.plot(0,0, color='w', label=TBPeaksLabel)
-plt.title('Fourier Transform of Cropped Top-Bottom Signal', fontsize=16)
-plt.ylabel('Volts per Hertz (V/Hz)',fontsize=12)
-plt.xlabel('Frequency (Hz)',fontsize=12)
-plt.legend(bbox_to_anchor=(1,1), fontsize = 10)
-plt.grid()
-
-plt.tight_layout()
-plt.subplots_adjust(top=0.93)
-
-new_rel_path = 'Data/'+fileName+'.png'
-new_abs_file_path = os.path.join(script_dir, new_rel_path)
-
-plt.savefig(new_abs_file_path, dpi=500)
-plt.show()
-
-
-review = False
-if review ==True:
-    TB_SignalFirst = []
-    TB_SignalSec = []
-    timeFirst = []
-    timeSec = []
-    for i in range(len(TB_Signal)):
-        if time[i]<100:
-            TB_SignalFirst.append(TB_Signal[i])
-            timeFirst.append(time[i])
-        else:
-
-            TB_SignalSec.append(TB_Signal[i])
-            timeSec.append(time[i])
-
-    TBSignalFirstF = np.fft.fft(TB_SignalFirst)**2
-    TBSignalFirstF = np.abs(TBSignalFirstF[:len(timeFirst)/2])/max(TBSignalFirstF)
-
-    TBSignalSecF = np.fft.fft(TB_SignalSec)**2
-    TBSignalSecF = np.abs(TBSignalSecF[:len(timeSec)/2])/max(TBSignalSecF)
-
-    freqFirst = np.linspace(0.0, 1.0/(2.0*avgDeltaT),len(timeFirst)/2)
-    freqSec = np.linspace(0.0, 1.0/(2.0*avgDeltaT),len(timeSec)/2)
-
-
-
-#TBPeaksFirst, TBLowsFirst = pd.peakdet(TBSignalFirstF, 0.2, freq)
-#TBPeaksSec, TBLowsSec = pd.peakdet(TBSignalSecF, 0.2, freq)
-    plt.subplot(1,3,1)
-    plt.plot(freqFirst, TBSignalFirstF)
-    plt.plot(freqSec, TBSignalSecF)
-    plt.xlim(4,5)
-
-    plt.subplot(1,3,2)
-    plt.plot(freqFirst,TBSignalFirstF)
-    plt.xlim(4,5)
-
-    plt.subplot(1,3,3)
-    plt.plot(freqSec,TBSignalSecF)
-    plt.xlim(4,5)
-
+    plt.savefig(new_abs_file_path, dpi=300)
     plt.show()
+
+
+def FourierTransform(data):
+    transformData = np.fft.fft(data)
+    transformData = 2.0/len(data) * np.abs(transformData[:len(data)/2])
+    return transformData
+
+def PeakDetect(data, domain):
+    print(np.abs(max(data)/15))
+    Peaks, Lows = pd.peakdet(data,(max(data)/15),domain)
+    return Peaks
+
+
+
+
+FFTSignalAnalysis('TestFile.txt', focus = None)
