@@ -6,8 +6,6 @@ Created on Wed May 25 12:57:40 2016
 """
 
 import numpy as np
-import scipy as sp
-import scipy.fftpack as spfft
 import matplotlib.pyplot as plt
 import peakdetect as pd
 import os
@@ -187,7 +185,6 @@ def FourierTransform(data):
     return transformData
 
 def PeakDetect(data, domain):
-    print(np.abs(max(data)/15))
     Peaks, Lows = pd.peakdet(data,(max(data)/15),domain)
     return Peaks
 
