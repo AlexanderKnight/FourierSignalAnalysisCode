@@ -12,13 +12,35 @@ import os
 import re
 
 
-def FFTSignalAnalysis(file, minSum=1.0, minSumAbs = True, focus = None):
+def FFTSignalAnalysis(file, minCrop=1.0, focus = None, \
+                        takeLabel=True, dataLabels = None, colMajor = 1, \
+                        keepHigh = True):
+    '''
+    This function is to analyze a signal that is recorded on a text file with
+    tab seperated columns. The only requirements are that the first column of
+    this file be time records.
 
+    If an interval of time is to be focused on, the
+    variable 'focus' should be a tuple of (beginning time, end time) as either
+    a float or int.
 
+    If further cropping is required, based on other data,
+    user must specify which column to evaluate with colMajor, with minCrop
+    determineing the line. If data evaluated higher than minCrop is to be kept,
+    keepHigh = True. If data lower than minCrop, then keepHigh should be False.
+
+    Finally, user can specify the labels for the data columns by giving an
+    array of strings to dataLabels. If not, then the function will check
+    to see if the first row of the data file contains strings, and will use
+    these as labels if it finds any. Otherwise, each column is sequencially
+    labeled.
+    '''
+
+    #Strips name of file
     fileNameRegex = re.compile(r'(\w|-)+')
     fileName = fileNameRegex.search(file).group()
 
-    #Brings in data from datafile in the /Data/ folder
+    #Brings in data from datafile in the /Data/ fdataer
     script_dir = os.path.dirname(__file__)
     rel_path = 'Data/'+file
     abs_file_path = os.path.join(script_dir, rel_path)
@@ -27,133 +49,131 @@ def FFTSignalAnalysis(file, minSum=1.0, minSumAbs = True, focus = None):
 
 
     #Separates out values from larger array
-    oldTime = data[:,0]
-    oldSumSignal = data[:,1]
-    oldLR_Signal = data[:,2]
-    oldTB_Signal = data[:,3]
+    if all(isinstance(item, str) for item in data[0,:]) and \
+    takeLabel == True and dataLabels == None:
+        dataLabels = data[0,:]
+        data = np.delete(data,(0),axis=0)
 
 
+    #crops signal if one area is to be focused on
     if focus != None:
-        oldTime, oldSumSignal, oldLR_Signal, oldTB_Signal = signalCropTime(\
-        oldTime, oldSumSignal, oldLR_Signal, oldTB_Signal, focus)
+        data = signalCrop(data, 0, focus)
 
-    #crops signal based on decimal fraction strength of sumSignal, if lower than specified, cropped out
-    time, sumSignal, LR_Signal, TB_Signal = signalCropSum(oldTime,oldSumSignal,oldLR_Signal,oldTB_Signal, minSum, minSumAbs = minSumAbs)
+    #crops signal based on strength of specified signal.
+    #Lower/Higher than specified values are cropped out.
+    croppedData = signalCrop(data, colMajor, minCrop, keepHigh)
 
-    #removes mean, zeroes
-    sumSignal -= np.mean(sumSignal)
-    LR_Signal -= np.mean(LR_Signal)
-    TB_Signal -= np.mean(TB_Signal)
-
-    # does the fast fourier transform on each of the arrays and sets
-    #them up to be plotted
-    sumSignalF = FourierTransform(sumSignal)
-    LR_SignalF = FourierTransform(LR_Signal)
-    TB_SignalF = FourierTransform(TB_Signal)
+    #removes mean, setting average to zero,
+    for i in range(1,len(data[0,:])):
+        croppedData[:,i] -= np.mean(croppedData[:,i])
 
     #find the max value that can be plotted out to
     deltaT = []
-    for i in range(len(time)-1):
-        deltaT.append(time[i+1]-time[i])
-
+    for i in range(len(croppedData[:,0])-1):
+        deltaT.append(croppedData[i+1,0]-croppedData[i,0])
     avgDeltaT = np.mean(deltaT)
 
     # makes an array for frequencies
-    freq = np.linspace(0.0, 1.0/(2.0*avgDeltaT),len(time)/2)
+    freq = np.linspace(0.0, 1.0/(2.0*avgDeltaT),len(croppedData[:,0])/2)
 
-    #does peakfinding on each of them, still in progress
-    sumPeaks = PeakDetect(sumSignalF,freq)
-    LRPeaks = PeakDetect(LR_SignalF, freq)
-    TBPeaks = PeakDetect(TB_SignalF, freq)
+    # does the fast fourier transform on each of the data columns and sets
+    #them up to be plotted
+    dataF = FourierTransform(croppedData, freq)
 
-    oldData = [oldTime, oldSumSignal, oldLR_Signal, oldTB_Signal]
-    croppedData = [time, sumSignal, LR_Signal, TB_Signal]
-    transformedData = [freq, sumSignalF, LR_SignalF, TB_SignalF]
-    peakData = [sumPeaks, LRPeaks, TBPeaks]
+    #does peakfinding on each of them
+    peakData = PeakDetect(dataF)
 
-    graphSignals(oldData, croppedData, transformedData, peakData, fileName, oldTime, script_dir)
+    #graphs data
+    graphSignals(data, croppedData, dataF, peakData, \
+                fileName, script_dir, dataLabels = dataLabels)
 
-
-
-
-
-def signalCropSum(time,sumSignal,LRSignal,TBSignal, minSum=1.0, minSumAbs=True):
+def signalCrop(data, colMajor, cropVal, keepHigh=True):
     '''
-    Function to crop signal based on relative strength of sum signal
-    compared to maximum. So minSum=0.8 would return all data at which
-    the sum signal is minSum fraction  or higher than the maximum of the sum signal
+    This function crops the data based on a set of parameters. It consists of
+    two major parts.
+
+    First, if cropVal is a int or a float, then it crops all data for which
+    the colMajor column's values are lower or higher than cropVale value,
+    depending on if keepHigh is true or false, respectively.
+
+    Second, if cropVal is a tuple, then it crops out all data for which the
+    colMajor column's values are not between the maximum and minimum of cropVal.
+
+    The second part is used for time selection primarily, while the first is
+    used for data specific cropping.
     '''
 
-    #define new arrays
-    newtime = []
-    newSum = []
-    newLR = []
-    newTB = []
+    #define array of row indexes to be cropped
+    croppedRows = []
 
-    # crops signals
-    for i in range(len(sumSignal)):
-        if minSumAbs ==True:
-            if sumSignal[i] >=minSum:
-                newtime.append(time[i])
-                newSum.append(sumSignal[i])
-                newLR.append(LRSignal[i])
-                newTB.append(TBSignal[i])
-        elif minSumAbs ==False:
-            if sumSignal[i] >=minSum*max(sumSignal):
-                newtime.append(time[i])
-                newSum.append(sumSignal[i])
-                newLR.append(LRSignal[i])
-                newTB.append(TBSignal[i])
-    return newtime, newSum, newLR, newTB
-
-def signalCropTime(time, sumSignal, LRSignal, TBSignal, timeChunk):
-
-    newtime = []
-    newSum = []
-    newLR = []
-    newTB = []
-
-    for i in range(len(time)):
-        if time[i] >= timeChunk[0] and time[i] <= timeChunk[1]:
-            newtime.append(time[i])
-            newSum.append(sumSignal[i])
-            newLR.append(LRSignal[i])
-            newTB.append(TBSignal[i])
-    return newtime, newSum, newLR, newTB
+    if type(cropVal) == int or type(cropVal) == float:
 
 
-def graphSignals(old, cropped, transformed, peaks, fileName, time, script_dir):
+        for i in range(len(data[:,colMajor])):
+            #appends row index if colMajor column value is lower than cropVal
+            if data[i,colMajor] < cropVal and keepHigh == True:
+                croppedRows.append(i)
+
+            #appends row index if colMajor column value is higher than cropVal
+            if data[i,colMajor] > cropVal and keepHigh == False:
+                croppedRows.append(i)
+
+    if type(cropVal) == list:
+
+        for i in range(len(data[:,colMajor])):
+            #appends row index if colMajor column value is not in cropVal
+            if data[i,colMajor]< min(cropVal) \
+                or data[i,colMajor] > max(cropVal):
+
+                croppedRows.append(i)
+
+    #deletes rows
+    data = np.delete(data, croppedRows, axis = 0)
+
+    return data
 
 
-    graphLabels = ['Sum Signal', 'Left-Right Signal', 'Top-Bottom Signal']
+
+def graphSignals(data, cropped, transformed, peaks, fileName, \
+                    script_dir, dataLabels = None):
+
+    if dataLabels == None:
+        dataLabels = []
+        for i in range(1, len(transformed[0,1:])+1):
+            dataLabels.append(str(i))
+    elif dataLabels != None:
+        dataLabels = map(str, dataLabels)
+
 
     i = 1
-    plt.figure(figsize=(20,15))
+    plt.figure(figsize=(8*len(data[0,1:]),5*len(data[0,1:])))
     #plots the original signals
-    for j in range(1,4):
+    plt.suptitle(fileName + ',  %0.1f sec to %0.1f sec'
+                    %(min(data[:,0]),max(data[:,0])), fontsize = 20)
+    for j in range(1,len(data[0,1:])+1):
 
-        plt.subplot(3,3,i)
-        plt.plot(old[0], old[j])
-        plt.title('Original '+graphLabels[j-1], fontsize=16)
+        plt.subplot(3,len(data[0,1:]),i)
+        plt.plot(data[:,0], data[:,j])
+        plt.title('Original '+dataLabels[j-1], fontsize=16)
         plt.ylabel('Volts (V)',fontsize=12)
         plt.xlabel('Time (s)',fontsize=12)
         plt.grid()
         i +=1
 
-    for j in range(1,4):
-        #Plots the cropped signals
-        plt.subplot(3,3,i)
-        plt.title('Cropped '+graphLabels[j-1], fontsize=16)
+    #Plots the cropped signals
+    for j in range(1,len(cropped[0,1:])+1):
+        plt.subplot(3,len(cropped[0,1:]),i)
+        plt.title('Cropped '+dataLabels[j-1], fontsize=16)
         plt.ylabel('Volts (V)',fontsize=12)
         plt.xlabel('Time (s)',fontsize=12)
-        plt.plot(cropped[0],cropped[j])
+        plt.plot(cropped[:,0],cropped[:,j])
         plt.grid()
         i+=1
 
-    for j in range(1,4):
+    for j in range(1,len(transformed[0,1:])+1):
         # plots  fourier transforms
-        plt.subplot(3,3,i)
-        plt.plot(transformed[0],transformed[j])
+        plt.subplot(3,len(transformed[0,1:]),i)
+        plt.plot(transformed[:,0],transformed[:,j])
         PeaksLabel = 'Peaks at'
         try:
             plt.scatter((peaks[j-1][:,0]), peaks[j-1][:,1], label='Peaks')
@@ -162,7 +182,7 @@ def graphSignals(old, cropped, transformed, peaks, fileName, time, script_dir):
         except:
             PeaksLabel += ' nowhere'
         plt.plot(0,0, color='w', label=PeaksLabel)
-        plt.title('Fourier Transform of Cropped '+graphLabels[j-1], fontsize=16)
+        plt.title('Fourier Transform of Cropped '+dataLabels[j-1], fontsize=16)
         plt.ylabel('Volts per Hertz (V/Hz)',fontsize=12)
         plt.xlabel('Frequency (Hz)',fontsize=12)
         plt.legend(bbox_to_anchor=(1,1), fontsize = 10)
@@ -172,23 +192,32 @@ def graphSignals(old, cropped, transformed, peaks, fileName, time, script_dir):
     plt.tight_layout()
     plt.subplots_adjust(top=0.93)
 
-    new_rel_path = 'Data/%s-%0.2fs-%0.2fs.png'%(fileName, time[0],time[-1])
+    new_rel_path = 'Data/%s-%0.2fs-%0.2fs.png'%(fileName, data[0,0],data[-1,0])
     new_abs_file_path = os.path.join(script_dir, new_rel_path)
 
-    plt.savefig(new_abs_file_path, dpi=300)
+    plt.savefig(new_abs_file_path, dpi=200)
     plt.show()
 
 
-def FourierTransform(data):
-    transformData = np.fft.fft(data)
-    transformData = 2.0/len(data) * np.abs(transformData[:len(data)/2])
+def FourierTransform(data, freq):
+    transformData = freq
+    transformData = np.reshape(transformData, (-1,1))
+    for i in range(1,len(data[0,:])):
+        tempArray = np.fft.fft(data[:,i])
+        tempArray = 2.0/len(data[:,0]) * np.abs(tempArray[:len(data[:,0])/2])
+        tempArray = np.reshape(tempArray,(-1,1))
+        transformData = np.append(transformData, tempArray, axis=1)
     return transformData
 
-def PeakDetect(data, domain):
-    Peaks, Lows = pd.peakdet(data,(max(data)/15),domain)
-    return Peaks
+
+def PeakDetect(data):
+    peakData = []
+    for i in range(1, len(data[0,:])):
+        Peaks, Lows = pd.peakdet(data[:,i],(max(data[:,i])/15),data[:,0])
+        peakData.append(Peaks)
+    return peakData
 
 
 
 
-FFTSignalAnalysis('TestFile.txt', focus = None)
+FFTSignalAnalysis('TestFileLarge.txt', focus = None, dataLabels = ['sumSignal', 'LR_Signal', 'TB_Signal', 'Floppy_Signal', 'Not_Floppy_Signal'])

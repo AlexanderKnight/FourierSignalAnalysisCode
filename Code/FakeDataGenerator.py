@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sp
 import os
 
-pathName = os.path.join(os.path.dirname(__file__), 'Data/TestFile.txt')
+pathName = os.path.join(os.path.dirname(__file__), 'Data/TestFileLarge.txt')
 testFile = open(pathName, 'w')
 testFile.write('#Time\tsumSignal\tLR_Signal\tTB_Signal \n')
 
@@ -15,7 +15,9 @@ for i in range(len(sumsignal)):
         sumsignal[i]=0.1
 lrsignal = np.sin(0.4 * 2.0 * np.pi*t) + 0.8 * np.sin(0.5 * 2.0 * np.pi * t) + 0.4 * np.sin(0.6 * 2.0 * np.pi * t)
 tbsignal = np.sin(0.5 * 2.0 * np.pi*t)
+fiddleSignal = np.sin(0.8 *2.0 * np.pi*t)
+waddleSignal = np.sin(0.3 * 2.0 * np.pi * t)
 for i in range(1000):
-    testFile.write('%0.6f\t%0.6f\t%0.6f\t%0.6f\n'%(t[i],sumsignal[i],lrsignal[i],tbsignal[i]))
+    testFile.write('%0.6f\t%0.6f\t%0.6f\t%0.6f\t%0.6f\t%0.6f\n'%(t[i],sumsignal[i],lrsignal[i],tbsignal[i],fiddleSignal[i],waddleSignal[i]))
 
 testFile.close()
