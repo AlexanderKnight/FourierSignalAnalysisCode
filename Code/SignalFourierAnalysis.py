@@ -136,7 +136,28 @@ def signalCrop(data, colMajor, cropVal, keepHigh=True):
 
 def graphSignals(data, cropped, transformed, peaks, fileName, \
                     script_dir, dataLabels = None):
+    '''
+    This function takes three sets of matricies (data, cropped,
+    and transformed) and plots them in rows. The first columns of each is an
+    array of the independant variable(time or frequency). The following columns
+    are the signals themselves. Data is the original input, cropped is the signal
+    after any specified cropping (not including focusing on a specific time),
+    and transformed is after FFT. Peaks is a seperate array that will plot on
+    the same graph as the transformed, and specify the peaks in those graphs.
 
+    The graphs are saved as a png with the title and file name based on the
+    original file input name. As such, fileName and script_dir are used here.
+
+    Last, data labels may be entered to add the the graph. They must be input
+    as strings into an array, where the ith' element of the array is the
+    name of the the i'th signal. For example, if our signals are a sum signal,
+    a left-right signal, and a top-bottom signal, dataLabels will be
+    ['Sum Signal', 'Left-Right Signal', 'Tob-Bottom Signal'].
+    If nothing is given, then each signal is labeled with a number (signal 1,
+    signal 2, signal 3, ....)
+    '''
+    #This chechs to see if there is an array of data labels, and create
+    #one if not.
     if dataLabels == None:
         dataLabels = []
         for i in range(1, len(transformed[0,1:])+1):
@@ -144,12 +165,13 @@ def graphSignals(data, cropped, transformed, peaks, fileName, \
     elif dataLabels != None:
         dataLabels = map(str, dataLabels)
 
-
+    #sets up variable to specify subplots
     i = 1
+    #Sets up figure, whose size is dependant on the number of signals
     plt.figure(figsize=(8*len(data[0,1:]),5*len(data[0,1:])))
-    #plots the original signals
     plt.suptitle(fileName + ',  %0.1f sec to %0.1f sec'
                     %(min(data[:,0]),max(data[:,0])), fontsize = 20)
+    #Plots the original signals
     for j in range(1,len(data[0,1:])+1):
 
         plt.subplot(3,len(data[0,1:]),i)
@@ -170,11 +192,14 @@ def graphSignals(data, cropped, transformed, peaks, fileName, \
         plt.grid()
         i+=1
 
+    # plots  fourier transforms
     for j in range(1,len(transformed[0,1:])+1):
-        # plots  fourier transforms
         plt.subplot(3,len(transformed[0,1:]),i)
         plt.plot(transformed[:,0],transformed[:,j])
-        PeaksLabel = 'Peaks at'
+        PeaksLabel = 'Peaks'
+
+        #Tries to plot peaks. If there are none, then skips plotting
+        #which throws an error, and skips it.
         try:
             plt.scatter((peaks[j-1][:,0]), peaks[j-1][:,1], label='Peaks')
             for k in range(len(peaks[j-1][:,0])):
@@ -189,28 +214,54 @@ def graphSignals(data, cropped, transformed, peaks, fileName, \
         plt.grid()
         i+=1
 
+    #Formatting
     plt.tight_layout()
     plt.subplots_adjust(top=0.93)
 
+    #Specifies path and name
     new_rel_path = 'Data/%s-%0.2fs-%0.2fs.png'%(fileName, data[0,0],data[-1,0])
     new_abs_file_path = os.path.join(script_dir, new_rel_path)
 
+    #save figure
     plt.savefig(new_abs_file_path, dpi=200)
-    plt.show()
+
+
+    #plt.show()
 
 
 def FourierTransform(data, freq):
+    '''
+    This function does a fast fourier tranform (FFT) of a series of signals. An array
+    for the corresponding frequency is given also, and the resulting transformed
+    signals are appended to form a matrix, where the first column is the
+    frequency and each following column is a signal.
+    '''
+
     transformData = freq
-    transformData = np.reshape(transformData, (-1,1))
+    transformData = np.reshape(transformData, (-1,1)) #reshapes into a vector
+
     for i in range(1,len(data[0,:])):
+
+        #uses numpy for actual FFT
         tempArray = np.fft.fft(data[:,i])
+
+        #does appropriate cropping and scaling
         tempArray = 2.0/len(data[:,0]) * np.abs(tempArray[:len(data[:,0])/2])
+
+        #reshapes into a vector
         tempArray = np.reshape(tempArray,(-1,1))
+
+        #appends to matrix
         transformData = np.append(transformData, tempArray, axis=1)
     return transformData
 
 
 def PeakDetect(data):
+    '''
+    This function uses the accompanying program peakdetect.py to find peaks in
+    the transformed data, and saves them out as an array of arrays, where each
+    element array corresponds to each transformed signal.
+    '''
     peakData = []
     for i in range(1, len(data[0,:])):
         Peaks, Lows = pd.peakdet(data[:,i],(max(data[:,i])/15),data[:,0])
@@ -219,5 +270,8 @@ def PeakDetect(data):
 
 
 
-
-FFTSignalAnalysis('TestFileLarge.txt', focus = None, dataLabels = ['sumSignal', 'LR_Signal', 'TB_Signal', 'Floppy_Signal', 'Not_Floppy_Signal'])
+dataLabelLarge = ['sumSignal', 'LR_Signal', \
+            'TB_Signal', 'Floppy_Signal', \
+            'Not_Floppy_Signal']
+dataLabel = ['sumSignal', 'LR_Signal', 'TB_Signal']
+FFTSignalAnalysis('TestFile.txt', focus = None)
