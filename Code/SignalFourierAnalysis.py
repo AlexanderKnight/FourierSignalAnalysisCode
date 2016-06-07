@@ -166,7 +166,7 @@ def graphSignals(data, cropped, transformed, peaks, fileName, \
         dataLabels = map(str, dataLabels)
 
     #sets up variable to specify subplots
-    i = 1
+    subplotIndex = 1
     #Sets up figure, whose size is dependant on the number of signals
     plt.figure(figsize=(8*len(data[0,1:]),5*len(data[0,1:])))
     plt.suptitle(fileName + ',  %0.1f sec to %0.1f sec'
@@ -174,27 +174,27 @@ def graphSignals(data, cropped, transformed, peaks, fileName, \
     #Plots the original signals
     for j in range(1,len(data[0,1:])+1):
 
-        plt.subplot(3,len(data[0,1:]),i)
+        plt.subplot(3,len(data[0,1:]),subplotIndex)
         plt.plot(data[:,0], data[:,j])
         plt.title('Original '+dataLabels[j-1], fontsize=16)
         plt.ylabel('Volts (V)',fontsize=12)
         plt.xlabel('Time (s)',fontsize=12)
         plt.grid()
-        i +=1
+        subplotIndex +=1
 
     #Plots the cropped signals
     for j in range(1,len(cropped[0,1:])+1):
-        plt.subplot(3,len(cropped[0,1:]),i)
+        plt.subplot(3,len(cropped[0,1:]),subplotIndex)
         plt.title('Cropped '+dataLabels[j-1], fontsize=16)
         plt.ylabel('Volts (V)',fontsize=12)
         plt.xlabel('Time (s)',fontsize=12)
         plt.plot(cropped[:,0],cropped[:,j])
         plt.grid()
-        i+=1
+        subplotIndex+=1
 
     # plots  fourier transforms
     for j in range(1,len(transformed[0,1:])+1):
-        plt.subplot(3,len(transformed[0,1:]),i)
+        plt.subplot(3,len(transformed[0,1:]),subplotIndex)
         plt.plot(transformed[:,0],transformed[:,j])
         PeaksLabel = 'Peaks'
 
@@ -212,7 +212,7 @@ def graphSignals(data, cropped, transformed, peaks, fileName, \
         plt.xlabel('Frequency (Hz)',fontsize=12)
         plt.legend(bbox_to_anchor=(1,1), fontsize = 10)
         plt.grid()
-        i+=1
+        subplotIndex+=1
 
     #Formatting
     plt.tight_layout()
