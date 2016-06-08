@@ -2,7 +2,7 @@
 """
 Created on Wed May 25 12:57:40 2016
 
-@author: silver
+@author: Alexander Knight
 """
 
 import numpy as np
@@ -127,7 +127,6 @@ def signalCrop(data, colMajor, cropVal, keepHigh=True):
     data = np.delete(data, croppedRows, axis = 0)
 
     return data
-
 
 
 def graphSignals(data, cropped, transformed, peaks, fileName, \
@@ -265,11 +264,3 @@ def PeakDetect(data):
         Peaks, Lows = pd.peakdet(data[:,i],(max(data[:,i])/15),data[:,0])
         peakData.append(Peaks)
     return peakData
-
-
-
-dataLabelLarge = ['sumSignal', 'LR_Signal', \
-            'TB_Signal', 'Floppy_Signal', \
-            'Not_Floppy_Signal']
-dataLabel = ['sumSignal', 'LR_Signal', 'TB_Signal']
-FFTSignalAnalysis('TestFile.txt', focus = None)
