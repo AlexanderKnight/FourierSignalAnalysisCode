@@ -12,9 +12,9 @@ import os
 import re
 
 
-def FFTSignalAnalysis(file, minCrop=1.0, focus = None, \
-                        takeLabel=True, dataLabels = None, colMajor = 1, \
-                        keepHigh = True):
+def FFTSignalAnalysis(file, \
+                    minCrop=1.0, colMajor = 1, keepHigh = True, focus = None,\
+                    takeLabel=True, dataLabels = None):
     '''
     This function is to analyze a signal that is recorded on a text file with
     tab seperated columns. The only requirements are that the first column of
@@ -50,13 +50,13 @@ def FFTSignalAnalysis(file, minCrop=1.0, focus = None, \
 
     #Separates out values from larger array
     if all(isinstance(item, str) for item in data[0,:]) and \
-    takeLabel == True and dataLabels == None:
+    takeLabel and not dataLabels:
         dataLabels = data[0,:]
         data = np.delete(data,(0),axis=0)
 
 
     #crops signal if one area is to be focused on
-    if focus != None:
+    if focus:
         data = signalCrop(data, 0, focus)
 
     #crops signal based on strength of specified signal.
@@ -105,20 +105,16 @@ def signalCrop(data, colMajor, cropVal, keepHigh=True):
 
     #define array of row indexes to be cropped
     croppedRows = []
-
-    if type(cropVal) == int or type(cropVal) == float:
-
+    if isinstance(cropVal, (int,float)):
 
         for i in range(len(data[:,colMajor])):
             #appends row index if colMajor column value is lower than cropVal
-            if data[i,colMajor] < cropVal and keepHigh == True:
+            if (data[i,colMajor] < cropVal and keepHigh) \
+                or data[i, colMajor] > cropVal and not keepHigh:
+
                 croppedRows.append(i)
 
-            #appends row index if colMajor column value is higher than cropVal
-            if data[i,colMajor] > cropVal and keepHigh == False:
-                croppedRows.append(i)
-
-    if type(cropVal) == list:
+    if isinstance(cropVal, list):
 
         for i in range(len(data[:,colMajor])):
             #appends row index if colMajor column value is not in cropVal
@@ -142,7 +138,9 @@ def graphSignals(data, cropped, transformed, peaks, fileName, \
     array of the independant variable(time or frequency). The following columns
     are the signals themselves. Data is the original input, cropped is the signal
     after any specified cropping (not including focusing on a specific time),
-    and transformed is after FFT. Peaks is a seperate array that will plot on
+    and transformed is after FFT.
+
+    Peaks is a seperate array of arrays that will plot on
     the same graph as the transformed, and specify the peaks in those graphs.
 
     The graphs are saved as a png with the title and file name based on the
@@ -158,11 +156,11 @@ def graphSignals(data, cropped, transformed, peaks, fileName, \
     '''
     #This chechs to see if there is an array of data labels, and create
     #one if not.
-    if dataLabels == None:
+    if not dataLabels:
         dataLabels = []
         for i in range(1, len(transformed[0,1:])+1):
             dataLabels.append(str(i))
-    elif dataLabels != None:
+    else:
         dataLabels = map(str, dataLabels)
 
     #sets up variable to specify subplots
