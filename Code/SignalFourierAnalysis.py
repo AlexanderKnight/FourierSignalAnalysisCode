@@ -11,7 +11,8 @@ import peakdetect as pd
 import os
 import re
 
-
+def pulseSignal(data):
+    pass #Need to make the signal pulse, so that start and end are both at zero
 def FFTSignalAnalysis(file, \
                     minCrop=1.0, colMajor = 1, keepHigh = True, focus = None,\
                     takeLabel=True, dataLabels = None):
@@ -264,3 +265,6 @@ def PeakDetect(data):
         Peaks, Lows = pd.peakdet(data[:,i],(max(data[:,i])/15),data[:,0])
         peakData.append(Peaks)
     return peakData
+
+
+FFTSignalAnalysis('TestFile2.txt', minCrop=0.0, takeLabel=False)
