@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import peakdetect as pd
 import os
 import re
-
+ def tester():
+     pass
 
 def FFTSignalAnalysis(file, \
                     minCrop=1.0, colMajor = 1, keepHigh = True, focus = None,\
