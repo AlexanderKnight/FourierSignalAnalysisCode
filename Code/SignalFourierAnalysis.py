@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import peakdetect as pd
 import os
 import re
- def tester():
-     pass
+def tester():
+    pass
 
 def pulseSignal(data):
     pass #Need to make the signal pulse, so that start and end are both at zero
